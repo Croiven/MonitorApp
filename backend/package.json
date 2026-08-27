@@ -1,0 +1,22 @@
+{
+  "name": "monitor-app-backend",
+  "version": "1.0.0",
+  "description": "MonitorApp backend",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@stoprocent/noble": "^2.8.0",
+    "better-sqlite3": "^13.0.3",
+    "node-ruuvitag": "^5.2.0"
+  },
+  "overrides": {
+    "@abandonware/noble": "npm:@stoprocent/noble@^2.8.0"
+  }
+}
