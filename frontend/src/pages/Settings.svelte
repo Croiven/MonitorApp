@@ -1,6 +1,8 @@
 <script>
   import { onMount } from "svelte";
   import { fetchTags } from "../lib/api.js";
+  import { navigateTo } from "../lib/router.js";
+  import ConnectionsPanel from "../components/ConnectionsPanel.svelte";
   import TagPanel from "../components/TagPanel.svelte";
 
   const TAG_POLL_MS = 30_000;
@@ -28,14 +30,16 @@
   <header class="topbar">
     <div>
       <h1>Settings</h1>
-      <p>Manage discovered RuuviTags</p>
+      <p>Manage connected services and RuuviTags</p>
     </div>
+    <button type="button" class="nav-link" onclick={() => navigateTo("/")}>Dashboard</button>
   </header>
 
   {#if error}
     <p class="banner error">{error}</p>
   {/if}
 
+  <ConnectionsPanel />
   <TagPanel {tags} onTagsChanged={refreshTags} />
 </main>
 
@@ -46,6 +50,14 @@
     margin: 0 auto;
   }
 
+  .topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
   .topbar h1 {
     margin: 0;
     font-size: 2rem;
@@ -54,6 +66,16 @@
   .topbar p {
     margin: 0.25rem 0 0;
     color: #8b949e;
+  }
+
+  .nav-link {
+    padding: 0.5rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid #30363d;
+    background: #21262d;
+    color: #e6edf3;
+    cursor: pointer;
+    flex-shrink: 0;
   }
 
   .banner {

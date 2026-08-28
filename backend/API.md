@@ -388,6 +388,99 @@ On Windows, CPU load averages are not available (`load1` is `null`). Temperature
 
 ---
 
+## Philips Hue
+
+Control lights on a local Hue bridge (no cloud account required).
+
+### Setup
+
+1. Find your bridge IP (Hue app → Settings → Hue Bridges, or your router).
+2. Add to `backend/.env`:
+   ```
+   HUE_BRIDGE_IP=192.168.x.x
+   ```
+3. Press the **link button** on the bridge.
+4. Within 30 seconds, open `http://127.0.0.1:3000/api/hue/link` in a browser.
+5. Copy the username into `.env`:
+   ```
+   HUE_USERNAME=...
+   ```
+6. Restart the backend.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HUE_BRIDGE_IP` | — | Bridge IP address on the local network |
+| `HUE_USERNAME` | — | API username from the link flow |
+| `HUE_POLL_MS` | `5000` | How often light state is refreshed (ms) |
+
+### `GET /api/hue/lights`
+
+Current lights (polled from the bridge).
+
+**Response `200`**
+
+```json
+{
+  "configured": true,
+  "bridgeIp": "192.168.1.50",
+  "lights": [
+    {
+      "id": "1",
+      "name": "Living room",
+      "on": true,
+      "brightness": 72,
+      "reachable": true,
+      "type": "Extended color light",
+      "colorCapable": true,
+      "ctCapable": true,
+      "presetCapable": true,
+      "colormode": "ct",
+      "ct": 366,
+      "color": "#fff1dd"
+    }
+  ],
+  "error": null,
+  "updatedAt": "2026-08-28T00:00:00.000Z"
+}
+```
+
+### `PUT /api/hue/lights`
+
+Update all lights at once. Each light only receives fields it supports (e.g. `color` is skipped for non-color lights).
+
+**Body** — same fields as a single-light update.
+
+### `PUT /api/hue/lights/:id`
+
+Update a light.
+
+**Body**
+
+```json
+{
+  "on": true,
+  "brightness": 80,
+  "color": "#ffb900",
+  "preset": "warm"
+}
+```
+
+`brightness` is `1`–`100` (converted to Hue `bri` 1–254).
+
+`color` is a hex string (`#RRGGBB`) for lights with a color gamut (`colorCapable: true`). It is converted to Hue `xy` coordinates clamped to the light's gamut and turns the light on.
+
+`preset` is one of `warm`, `neutral`, `cool`, or `daylight`. It sets a white tone using Hue color temperature (`ct`) when supported, otherwise falls back to a white `xy` point on color-capable lights.
+
+### `GET /api/hue/link`
+
+Link the bridge after pressing the physical link button — returns an HTML page with the username for `.env`.
+
+### `GET /api/hue/setup`
+
+Setup status and hints.
+
+---
+
 ## Spotify
 
 Shows the currently playing track from the authenticated Spotify account (phone, PC, or any device on that account).

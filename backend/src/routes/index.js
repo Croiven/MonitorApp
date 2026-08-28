@@ -1,5 +1,6 @@
 import { createStaticRoutes, getStaticDir } from "../lib/static.js";
 import { healthRoutes } from "./health.js";
+import { hueRoutes } from "./hue/index.js";
 import { rootRoutes } from "./root.js";
 import { ruuviHistoryRoutes } from "./ruuvi/history.js";
 import { ruuviReadingRoutes } from "./ruuvi/readings.js";
@@ -16,6 +17,7 @@ export const routes = [
   weatherRoutes,
   systemRoutes,
   spotifyRoutes,
+  hueRoutes,
   createStaticRoutes(getStaticDir()),
   rootRoutes,
 ];

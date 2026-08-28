@@ -67,3 +67,29 @@ export function spotifyControl(action) {
     body: JSON.stringify({ action }),
   });
 }
+
+export function fetchHueLights() {
+  return request("/api/hue/lights");
+}
+
+export function updateHueLight(id, patch) {
+  return request(`/api/hue/lights/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function updateAllHueLights(patch) {
+  return request("/api/hue/lights", {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function fetchSpotifySetup() {
+  return request("/api/spotify/setup");
+}
+
+export function fetchHueSetup() {
+  return request("/api/hue/setup");
+}

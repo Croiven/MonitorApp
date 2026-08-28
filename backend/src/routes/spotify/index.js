@@ -14,6 +14,7 @@ import {
   getSpotifyRedirectUri,
   getSuggestedRedirectUris,
   hasSpotifyAppCredentials,
+  isSpotifyConfigured,
   syncPlaybackState,
 } from "../../modules/spotify/client.js";
 import { getNowPlaying, setNowPlaying } from "../../modules/spotify/store.js";
@@ -34,7 +35,7 @@ function mergeSyncedPlayback(current, synced) {
   return {
     ...synced,
     history: current.history ?? [],
-    upcoming: synced.upcoming?.length ? synced.upcoming : (current.upcoming ?? []),
+    upcoming: synced.upcoming ?? [],
     shuffle: synced.shuffle ?? current.shuffle,
     repeat: synced.repeat ?? current.repeat,
     error: null,
@@ -131,9 +132,13 @@ export async function spotifyRoutes(req, res) {
   if (pathname === "/api/spotify/setup" && method === "GET") {
     const redirectUri = getSpotifyRedirectUri(req);
     sendJson(res, 200, {
+      configured: isSpotifyConfigured(),
+      hasClientCredentials: hasSpotifyAppCredentials(),
+      hasRefreshToken: Boolean(process.env.SPOTIFY_REFRESH_TOKEN?.trim()),
       redirectUri,
       suggestedRedirectUris: getSuggestedRedirectUris(),
-      hint: "Add redirectUri (and any URL you use to open /api/spotify/auth) exactly in the Spotify app settings.",
+      authPath: "/api/spotify/auth",
+      hint: "Add client id/secret to backend/.env, register redirectUri in the Spotify app, then connect to obtain a refresh token.",
     });
     return true;
   }

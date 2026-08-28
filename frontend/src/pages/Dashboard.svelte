@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { fetchReadings } from "../lib/api.js";
   import ClockWidget from "../components/ClockWidget.svelte";
+  import HueWidget from "../components/HueWidget.svelte";
   import SpotifyWidget from "../components/SpotifyWidget.svelte";
   import SystemWidget from "../components/SystemWidget.svelte";
   import WeatherWidget from "../components/WeatherWidget.svelte";
@@ -46,7 +47,10 @@
     <div class="span-2">
       <WeatherWidget />
     </div>
-  </div>
+    <div class="span-2">
+      <HueWidget />
+    </div>
+  </div>   
 
   {#if readings.length === 0}
     <p class="empty">No tracked tags are reporting right now.</p>

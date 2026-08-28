@@ -89,7 +89,11 @@
   });
 
   const queueSlots = $derived.by(() => {
-    const items = playback?.upcoming ?? [];
+    const exclude = new Set([
+      ...(playback?.track?.id ? [playback.track.id] : []),
+      ...(playback?.history ?? []).map((entry) => entry.id).filter(Boolean),
+    ]);
+    const items = (playback?.upcoming ?? []).filter((track) => track?.id && !exclude.has(track.id));
     return Array.from({ length: QUEUE_SIZE }, (_, index) => items[index] ?? null);
   });
 
@@ -395,7 +399,7 @@
     <div class="upcoming">
       <p class="upcoming-title">Up next</p>
       <ol class="queue">
-        {#each queueSlots as track, index (track?.id ?? `slot-${index}`)}
+        {#each queueSlots as track, index (`${track?.id ?? "empty"}-${index}`)}
           <li class:empty={!track} aria-hidden={!track}>
             <span class="queue-index">{index + 1}</span>
             {#if track?.imageUrl}

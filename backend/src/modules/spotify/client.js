@@ -145,35 +145,115 @@ function mapQueueTrack(item) {
   };
 }
 
-async function fetchUpcoming(token) {
+async function fetchContextUpcoming(token, contextUri, contextType, currentTrackId, limit = 20) {
+  const id = contextUri.split(":").pop();
+  if (!id || !currentTrackId) {
+    return [];
+  }
+
+  const tracks = [];
+
+  if (contextType === "album") {
+    let url = `${API_BASE}/albums/${id}/tracks?limit=50`;
+    while (url && tracks.length < 500) {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        break;
+      }
+
+      const data = await response.json();
+      for (const item of data.items ?? []) {
+        const mapped = mapQueueTrack(item);
+        if (mapped) {
+          tracks.push(mapped);
+        }
+      }
+      url = data.next ?? null;
+    }
+  } else if (contextType === "playlist") {
+    let url = `${API_BASE}/playlists/${id}/tracks?limit=100&fields=items(track(id,name,artists,album,duration_ms,images)),next`;
+    while (url && tracks.length < 500) {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        break;
+      }
+
+      const data = await response.json();
+      for (const item of data.items ?? []) {
+        const mapped = mapQueueTrack(item.track);
+        if (mapped) {
+          tracks.push(mapped);
+        }
+      }
+      url = data.next ?? null;
+    }
+  } else {
+    return [];
+  }
+
+  const currentIndex = tracks.findIndex((track) => track.id === currentTrackId);
+  if (currentIndex === -1) {
+    return [];
+  }
+
+  return tracks.slice(currentIndex + 1, currentIndex + 1 + limit);
+}
+
+function buildUpcomingFromSources(apiQueue, playerData, contextUpcoming) {
+  const currentId = mapTrack(playerData?.item)?.id ?? null;
+  let upcoming = apiQueue;
+
+  if (contextUpcoming.length > 0) {
+    const contextIds = new Set(contextUpcoming.map((track) => track.id));
+    const manualOnly = apiQueue.filter((track) => !contextIds.has(track.id));
+    upcoming = [...manualOnly, ...contextUpcoming];
+  }
+
+  if (!currentId) {
+    return upcoming;
+  }
+
+  const currentIndex = upcoming.findIndex((track) => track.id === currentId);
+  if (currentIndex === -1) {
+    return upcoming;
+  }
+
+  return upcoming.slice(currentIndex + 1);
+}
+
+async function fetchUpcoming(token, playerData = null) {
   const response = await fetch(`${API_BASE}/me/player/queue`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
 
-  if (response.status === 204 || response.status === 404) {
-    return [];
+  let apiQueue = [];
+  if (response.status !== 204 && response.status !== 404 && response.ok) {
+    const data = await response.json();
+    apiQueue = (data.queue ?? []).map(mapQueueTrack).filter(Boolean);
   }
 
-  if (!response.ok) {
-    return [];
+  let contextUpcoming = [];
+  const contextUri = playerData?.context?.uri;
+  const contextType = playerData?.context?.type;
+  const currentId = mapTrack(playerData?.item)?.id;
+  const shuffled = Boolean(playerData?.shuffle_state);
+
+  if (
+    !shuffled
+    && contextUri
+    && currentId
+    && (contextType === "playlist" || contextType === "album")
+  ) {
+    contextUpcoming = await fetchContextUpcoming(token, contextUri, contextType, currentId, 20);
   }
 
-  const data = await response.json();
-  const seen = new Set();
-
-  return (data.queue ?? [])
-    .map(mapQueueTrack)
-    .filter((track) => {
-      if (!track || seen.has(track.id)) {
-        return false;
-      }
-
-      seen.add(track.id);
-      return true;
-    })
-    .slice(0, 5);
+  return buildUpcomingFromSources(apiQueue, playerData, contextUpcoming).slice(0, 20);
 }
 
 function mapDevice(device) {
@@ -199,10 +279,6 @@ function normalizeRepeatState(value) {
 
 function mapPlaybackState(data, upcoming = []) {
   const track = mapTrack(data?.item);
-  const currentId = track?.id;
-  const filteredUpcoming = currentId
-    ? upcoming.filter((item) => item.id !== currentId)
-    : upcoming;
 
   return {
     configured: true,
@@ -214,7 +290,8 @@ function mapPlaybackState(data, upcoming = []) {
     shuffle: Boolean(data.shuffle_state),
     repeat: normalizeRepeatState(data.repeat_state),
     contextType: data.context?.type ?? null,
-    upcoming: filteredUpcoming.slice(0, 5),
+    contextUri: data.context?.uri ?? null,
+    upcoming: upcoming.slice(0, 20),
   };
 }
 
@@ -239,14 +316,11 @@ export async function fetchCurrentlyPlaying() {
   }
 
   const token = await getAccessToken();
-  const [response, upcoming] = await Promise.all([
-    fetch(`${API_BASE}/me/player`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }),
-    fetchUpcoming(token),
-  ]);
+  const response = await fetch(`${API_BASE}/me/player`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
   if (response.status === 204) {
     return {
@@ -258,7 +332,9 @@ export async function fetchCurrentlyPlaying() {
       device: null,
       shuffle: false,
       repeat: "off",
-      upcoming,
+      contextType: null,
+      contextUri: null,
+      upcoming: [],
     };
   }
 
@@ -268,6 +344,7 @@ export async function fetchCurrentlyPlaying() {
   }
 
   const data = await response.json();
+  const upcoming = await fetchUpcoming(token, data);
   return mapPlaybackState(data, upcoming);
 }
 
@@ -463,7 +540,7 @@ export function buildAuthorizeUrl(state, redirectUri) {
     client_id: clientId,
     response_type: "code",
     redirect_uri: redirectUri,
-    scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state",
+    scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state playlist-read-private",
     state,
   });
 

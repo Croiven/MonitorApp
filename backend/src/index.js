@@ -1,5 +1,6 @@
 import "./load-env.js";
 import { initDb } from "./db/index.js";
+import { startHue } from "./modules/hue/index.js";
 import { startRuuvi } from "./modules/ruuvi/index.js";
 import { startSpotify } from "./modules/spotify/index.js";
 import { startSystem } from "./modules/system/index.js";
@@ -12,3 +13,4 @@ startRuuvi();
 startWeather();
 startSystem();
 startSpotify();
+startHue();

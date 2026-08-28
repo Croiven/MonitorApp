@@ -4,7 +4,7 @@
   import "uplot/dist/uPlot.min.css";
   import { fetchHistory } from "../lib/api.js";
   import { downsampleHistory, HISTORY_HOURS, HISTORY_INTERVAL_MINUTES } from "../lib/history.js";
-  import { formatChartAxisTime, parseStoredDate } from "../lib/datetime.js";
+  import { formatChartAxisTime, formatChartHoverTime, parseStoredDate } from "../lib/datetime.js";
 
   let { tagId, compact = false } = $props();
 
@@ -33,7 +33,10 @@
       width,
       height: chartHeight,
       series: [
-        {},
+        {
+          value: (_u, val, _seriesIdx, dataIdx) =>
+            dataIdx == null ? "--" : formatChartHoverTime(val),
+        },
         { label: "Temp °C", stroke: "#58a6ff", width: 2, spanGaps: false },
         { label: "Humidity %", stroke: "#3fb950", width: 2, scale: "humidity", spanGaps: false },
       ],

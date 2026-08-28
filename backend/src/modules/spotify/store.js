@@ -45,9 +45,18 @@ export function getNowPlaying() {
   return state;
 }
 
+function filterUpcoming(upcoming, track, history) {
+  const exclude = new Set([
+    ...(track?.id ? [track.id] : []),
+    ...(history ?? []).map((entry) => entry.id).filter(Boolean),
+  ]);
+
+  return (upcoming ?? []).filter((item) => item?.id && !exclude.has(item.id)).slice(0, 5);
+}
+
 export function setNowPlaying(next) {
   const previousTrack = state.track;
-  const nextTrack = next.track;
+  const nextTrack = next.track ?? state.track;
   let history = next.history ?? state.history ?? [];
 
   if (
@@ -59,10 +68,17 @@ export function setNowPlaying(next) {
     history = pushHistory(history, previousTrack);
   }
 
+  const upcoming = filterUpcoming(
+    Object.prototype.hasOwnProperty.call(next, "upcoming") ? next.upcoming : state.upcoming,
+    nextTrack,
+    history,
+  );
+
   state = {
     ...state,
     ...next,
     history,
+    upcoming,
     updatedAt: new Date().toISOString(),
   };
 }
