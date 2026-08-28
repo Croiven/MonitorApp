@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { fetchReadings } from "../lib/api.js";
   import ClockWidget from "../components/ClockWidget.svelte";
+  import SpotifyWidget from "../components/SpotifyWidget.svelte";
   import SystemWidget from "../components/SystemWidget.svelte";
   import WeatherWidget from "../components/WeatherWidget.svelte";
   import TagMonitor from "../components/TagMonitor.svelte";
@@ -35,12 +36,16 @@
   <div class="grid">
     <ClockWidget />
     <SystemWidget />
-    <div class="weather-span">
-      <WeatherWidget />
+
+    <div class="span-2">
+      <SpotifyWidget />
     </div>
     {#each readings as reading (reading.tagId)}
       <TagMonitor {reading} />
     {/each}
+    <div class="span-2">
+      <WeatherWidget />
+    </div>
   </div>
 
   {#if readings.length === 0}
@@ -79,17 +84,26 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
     align-items: start;
   }
 
-  .weather-span {
+  .grid > :global(*),
+  .span-2 {
+    min-width: 0;
+  }
+
+  .span-2 {
     grid-column: span 2;
   }
 
   @media (max-width: 599px) {
-    .weather-span {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+
+    .span-2 {
       grid-column: span 1;
     }
   }

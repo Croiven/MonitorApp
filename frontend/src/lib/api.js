@@ -56,3 +56,14 @@ export function fetchWeather() {
 export function fetchSystemStatus() {
   return request("/api/system");
 }
+
+export function fetchNowPlaying() {
+  return request("/api/spotify/now-playing");
+}
+
+export function spotifyControl(action) {
+  return request("/api/spotify/control", {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+}

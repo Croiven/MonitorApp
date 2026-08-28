@@ -1,3 +1,13 @@
+export function sendRedirect(res, location) {
+  res.writeHead(302, { Location: location });
+  res.end();
+}
+
+export function sendHtml(res, statusCode, body) {
+  res.writeHead(statusCode, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(body);
+}
+
 export function sendJson(res, statusCode, body) {
   res.writeHead(statusCode, { "Content-Type": "application/json" });
   res.end(JSON.stringify(body));

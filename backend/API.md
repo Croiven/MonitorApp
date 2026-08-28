@@ -388,6 +388,69 @@ On Windows, CPU load averages are not available (`load1` is `null`). Temperature
 
 ---
 
+## Spotify
+
+Shows the currently playing track from the authenticated Spotify account (phone, PC, or any device on that account).
+
+### Setup
+
+1. Create an app at [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2. Add yourself under **User Management** in the app settings.
+3. Add redirect URI: `http://127.0.0.1:3000/api/spotify/callback` (Spotify does not accept `localhost`; use `127.0.0.1`). For Vite dev also add `http://127.0.0.1:5173/api/spotify/callback`.
+4. Set in `backend/.env`:
+   - `SPOTIFY_CLIENT_ID`
+   - `SPOTIFY_CLIENT_SECRET`
+5. Open `GET /api/spotify/auth` in a browser and sign in — copy the refresh token into `.env`.
+6. Restart the backend.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SPOTIFY_CLIENT_ID` | — | Spotify app client ID |
+| `SPOTIFY_CLIENT_SECRET` | — | Spotify app client secret |
+| `SPOTIFY_REFRESH_TOKEN` | — | OAuth refresh token (from auth flow) |
+| `SPOTIFY_REDIRECT_URI` | `http://127.0.0.1:3000/api/spotify/callback` | OAuth redirect URI |
+| `SPOTIFY_POLL_MS` | `5000` | How often the backend polls Spotify (ms) |
+
+### `GET /api/spotify/now-playing`
+
+Current playback state (polled from Spotify Web API).
+
+**Response `200`**
+
+```json
+{
+  "configured": true,
+  "playing": true,
+  "paused": false,
+  "track": {
+    "id": "abc123",
+    "name": "Song title",
+    "artists": ["Artist name"],
+    "album": "Album name",
+    "durationMs": 240000,
+    "imageUrl": "https://i.scdn.co/image/..."
+  },
+  "progressMs": 45000,
+  "device": "Living room speaker",
+  "error": null,
+  "updatedAt": "2026-08-28T00:00:00.000Z"
+}
+```
+
+When nothing is playing, `playing` is `false` and `track` is `null`.
+
+When Spotify is not configured, `configured` is `false`.
+
+### `GET /api/spotify/auth`
+
+Redirects to Spotify authorization (requires client ID and secret).
+
+### `GET /api/spotify/callback`
+
+OAuth callback — displays the refresh token to add to `.env`.
+
+---
+
 ## Root
 
 ### `GET /`
