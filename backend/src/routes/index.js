@@ -1,3 +1,4 @@
+import { createStaticRoutes, getStaticDir } from "../lib/static.js";
 import { healthRoutes } from "./health.js";
 import { rootRoutes } from "./root.js";
 import { ruuviHistoryRoutes } from "./ruuvi/history.js";
@@ -9,5 +10,6 @@ export const routes = [
   ruuviTagRoutes,
   ruuviReadingRoutes,
   ruuviHistoryRoutes,
+  createStaticRoutes(getStaticDir()),
   rootRoutes,
 ];

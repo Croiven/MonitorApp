@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { parseStoredDate, toRecordedAtIso } from "../lib/datetime.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -129,11 +130,11 @@ export function initDb() {
     INSERT INTO readings (
       tag_id, address, temperature, humidity, pressure, rssi, data_format,
       battery, acceleration_x, acceleration_y, acceleration_z, tx_power,
-      movement_counter, measurement_sequence_number, mac, received_at
+      movement_counter, measurement_sequence_number, mac, received_at, recorded_at
     ) VALUES (
       @tagId, @address, @temperature, @humidity, @pressure, @rssi, @dataFormat,
       @battery, @accelerationX, @accelerationY, @accelerationZ, @txPower,
-      @movementCounter, @measurementSequenceNumber, @mac, @receivedAt
+      @movementCounter, @measurementSequenceNumber, @mac, @receivedAt, @recordedAt
     )
   `);
 
@@ -204,6 +205,7 @@ export function saveReading(reading) {
     measurementSequenceNumber: reading.measurementSequenceNumber ?? null,
     mac: reading.mac ?? null,
     receivedAt: reading.receivedAt,
+    recordedAt: reading.recordedAt ?? toRecordedAtIso(),
   });
 }
 
@@ -250,31 +252,35 @@ export function deleteTagName(tagId) {
   return result.changes > 0;
 }
 
-export function getHistory({ tagId, limit = 100 } = {}) {
-  const safeLimit = Math.min(Math.max(1, limit), 1000);
+export function getHistory({ tagId, hours = 24, limit = 1000 } = {}) {
+  const safeLimit = Math.min(Math.max(1, limit), 2000);
+  const since = Date.now() - hours * 60 * 60 * 1000;
 
-  if (tagId) {
-    return db
-      .prepare(
-        `SELECT readings.*, tags.name AS tag_name
-         FROM readings
-         LEFT JOIN tags ON tags.tag_id = readings.tag_id
-         WHERE readings.tag_id = ?
-         ORDER BY readings.recorded_at DESC
-         LIMIT ?`
-      )
-      .all(tagId, safeLimit)
-      .map(rowToReading);
-  }
+  const rows = tagId
+    ? db
+        .prepare(
+          `SELECT readings.*, tags.name AS tag_name
+           FROM readings
+           LEFT JOIN tags ON tags.tag_id = readings.tag_id
+           WHERE readings.tag_id = ?
+           ORDER BY readings.recorded_at DESC
+           LIMIT ?`
+        )
+        .all(tagId, safeLimit)
+    : db
+        .prepare(
+          `SELECT readings.*, tags.name AS tag_name
+           FROM readings
+           INNER JOIN tags ON tags.tag_id = readings.tag_id AND tags.name IS NOT NULL
+           ORDER BY readings.recorded_at DESC
+           LIMIT ?`
+        )
+        .all(safeLimit);
 
-  return db
-    .prepare(
-      `SELECT readings.*, tags.name AS tag_name
-       FROM readings
-       INNER JOIN tags ON tags.tag_id = readings.tag_id AND tags.name IS NOT NULL
-       ORDER BY readings.recorded_at DESC
-       LIMIT ?`
-    )
-    .all(safeLimit)
-    .map(rowToReading);
+  return rows
+    .map(rowToReading)
+    .filter((row) => {
+      const time = parseStoredDate(row.recordedAt);
+      return time && time.getTime() >= since;
+    });
 }

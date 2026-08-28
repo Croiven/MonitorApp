@@ -10,8 +10,9 @@ export async function ruuviHistoryRoutes(req, res) {
 
   const query = parseQuery(req.url ?? "/");
   const tagId = query.get("tagId") ?? undefined;
-  const limit = query.get("limit") ? Number(query.get("limit")) : 100;
+  const hours = query.get("hours") ? Number(query.get("hours")) : 24;
+  const limit = query.get("limit") ? Number(query.get("limit")) : 1000;
 
-  sendJson(res, 200, getHistory({ tagId, limit }));
+  sendJson(res, 200, getHistory({ tagId, hours, limit }));
   return true;
 }
