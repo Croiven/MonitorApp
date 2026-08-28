@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import { fetchReadings } from "../lib/api.js";
   import ClockWidget from "../components/ClockWidget.svelte";
+  import SystemWidget from "../components/SystemWidget.svelte";
+  import WeatherWidget from "../components/WeatherWidget.svelte";
   import TagMonitor from "../components/TagMonitor.svelte";
 
   const READING_POLL_MS = 5_000;
@@ -32,6 +34,10 @@
 
   <div class="grid">
     <ClockWidget />
+    <SystemWidget />
+    <div class="weather-span">
+      <WeatherWidget />
+    </div>
     {#each readings as reading (reading.tagId)}
       <TagMonitor {reading} />
     {/each}
@@ -76,5 +82,15 @@
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 0.5rem;
     align-items: start;
+  }
+
+  .weather-span {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 599px) {
+    .weather-span {
+      grid-column: span 1;
+    }
   }
 </style>

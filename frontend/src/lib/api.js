@@ -48,3 +48,11 @@ export function removeTagName(tagId) {
     method: "DELETE",
   });
 }
+
+export function fetchWeather() {
+  return request("/api/weather");
+}
+
+export function fetchSystemStatus() {
+  return request("/api/system");
+}
