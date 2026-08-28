@@ -10,6 +10,7 @@
 
   const chartHeight = $derived(compact ? 140 : 220);
   const REFRESH_MS = HISTORY_INTERVAL_MINUTES * 60_000;
+  const GAP_THRESHOLD_SEC = HISTORY_INTERVAL_MINUTES * 60 * 2;
   const TEMP_MIN = -30;
   const TEMP_MAX = 40;
   const HUMIDITY_MIN = 0;
@@ -70,6 +71,29 @@
     };
   }
 
+  function buildSeriesData(points) {
+    const timestamps = [];
+    const temperatures = [];
+    const humidity = [];
+
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      const prev = i > 0 ? points[i - 1] : null;
+
+      if (prev && point.t - prev.t > GAP_THRESHOLD_SEC) {
+        timestamps.push(prev.t + 1);
+        temperatures.push(null);
+        humidity.push(null);
+      }
+
+      timestamps.push(point.t);
+      temperatures.push(point.temperature ?? null);
+      humidity.push(point.humidity ?? null);
+    }
+
+    return [timestamps, temperatures, humidity];
+  }
+
   async function loadHistory() {
     if (!tagId || !container) {
       return;
@@ -95,10 +119,7 @@
         }];
       });
 
-      const timestamps = points.map((point) => point.t);
-      const temperatures = points.map((point) => point.temperature);
-      const humidity = points.map((point) => point.humidity);
-      const data = [timestamps, temperatures, humidity];
+      const data = buildSeriesData(points);
       const opts = buildChartOptions(container.clientWidth, minSec, nowSec);
 
       if (chart) {
