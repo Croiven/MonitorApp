@@ -1,0 +1,33 @@
+name: Deploy MonitorApp on Pi
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Update repository
+        run: |
+          cd /home/joonas-raspi/development/MonitorApp
+          git fetch --all
+          git reset --hard origin/main
+
+      - name: Deploy backend
+        run: |
+          cd /home/joonas-raspi/development/MonitorApp/backend
+          npm ci --production
+
+      - name: Build frontend
+        run: |
+          cd /home/joonas-raspi/development/MonitorApp/frontend
+          npm ci
+          npm run build
+
+      - name: Restart MonitorApp
+        run: |
+          cd /home/joonas-raspi/development/MonitorApp/backend
+          pm2 restart MonitorApp || pm2 start src/index.js --name MonitorApp
