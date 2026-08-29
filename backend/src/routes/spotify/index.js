@@ -18,6 +18,7 @@ import {
   syncPlaybackState,
 } from "../../modules/spotify/client.js";
 import { getNowPlaying, setNowPlaying } from "../../modules/spotify/store.js";
+import { markQueuePollRefreshed } from "../../modules/spotify/client.js";
 
 const SYNC_ACTIONS = new Set(["next", "previous", "play", "pause"]);
 
@@ -68,6 +69,10 @@ function schedulePlaybackSync(trackIdBefore = null) {
       if (trackIdBefore && syncedId === trackIdBefore && attempt < 6) {
         syncTimer = setTimeout(() => attemptSync(attempt + 1), 400);
         return;
+      }
+
+      if (trackIdBefore && syncedId && syncedId !== trackIdBefore) {
+        markQueuePollRefreshed();
       }
 
       setNowPlaying(mergeSyncedPlayback(current, synced));

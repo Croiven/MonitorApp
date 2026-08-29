@@ -2,6 +2,8 @@ import {
   fetchCurrentlyPlaying,
   getSuggestedRedirectUris,
   isSpotifyConfigured,
+  shouldRefreshQueue,
+  SpotifyRateLimitError,
 } from "./client.js";
 import {
   clearNowPlayingError,
@@ -9,9 +11,15 @@ import {
   setNowPlayingError,
 } from "./store.js";
 
-const POLL_MS = Number(process.env.SPOTIFY_POLL_MS) || 5_000;
+const POLL_MS = Number(process.env.SPOTIFY_POLL_MS) || 15_000;
+
+let backoffUntil = 0;
 
 async function pollNowPlaying() {
+  if (Date.now() < backoffUntil) {
+    return;
+  }
+
   if (!isSpotifyConfigured()) {
     setNowPlaying({
       configured: false,
@@ -30,13 +38,20 @@ async function pollNowPlaying() {
   }
 
   try {
-    const playback = await fetchCurrentlyPlaying();
+    const includeUpcoming = shouldRefreshQueue();
+    const playback = await fetchCurrentlyPlaying({ includeUpcoming });
+
     setNowPlaying({
       ...playback,
       error: null,
     });
     clearNowPlayingError();
   } catch (err) {
+    if (err instanceof SpotifyRateLimitError) {
+      backoffUntil = Date.now() + err.retryAfterSec * 1000;
+      console.warn("[spotify] Rate limited — backing off for %ds", err.retryAfterSec);
+    }
+
     setNowPlayingError(err.message);
   }
 }
@@ -65,7 +80,12 @@ export function startSpotify() {
     return;
   }
 
-  console.log("[spotify] Polling now playing every %ds", POLL_MS / 1000);
+  const queuePollMs = Number(process.env.SPOTIFY_QUEUE_POLL_MS) || 60_000;
+  console.log(
+    "[spotify] Polling playback every %ds, queue every %ds",
+    POLL_MS / 1000,
+    queuePollMs / 1000,
+  );
   pollNowPlaying();
   setInterval(pollNowPlaying, POLL_MS);
 }

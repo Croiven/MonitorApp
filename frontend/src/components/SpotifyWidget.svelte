@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { fetchNowPlaying, spotifyControl } from "../lib/api.js";
 
-  const POLL_MS = 5_000;
+  const POLL_MS = 15_000;
   const QUEUE_SIZE = 5;
 
   const CONTEXT_LABELS = {

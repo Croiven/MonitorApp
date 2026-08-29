@@ -1,8 +1,30 @@
 const TOKEN_URL = "https://accounts.spotify.com/api/token";
 const API_BASE = "https://api.spotify.com/v1";
 
+const CONTEXT_CACHE_TTL_MS = Number(process.env.SPOTIFY_CONTEXT_CACHE_MS) || 10 * 60_000;
+
 let accessToken = null;
 let tokenExpiresAt = 0;
+let lastUpcoming = [];
+let lastQueuePollAt = 0;
+const contextTrackCache = new Map();
+
+export function markQueuePollRefreshed() {
+  lastQueuePollAt = Date.now();
+}
+
+export function shouldRefreshQueue() {
+  const queuePollMs = Number(process.env.SPOTIFY_QUEUE_POLL_MS) || 60_000;
+  return Date.now() - lastQueuePollAt >= queuePollMs;
+}
+
+export class SpotifyRateLimitError extends Error {
+  constructor(message, retryAfterSec = 60) {
+    super(message);
+    this.name = "SpotifyRateLimitError";
+    this.retryAfterSec = retryAfterSec;
+  }
+}
 
 function getCredentials() {
   return {
@@ -145,56 +167,73 @@ function mapQueueTrack(item) {
   };
 }
 
-async function fetchContextUpcoming(token, contextUri, contextType, currentTrackId, limit = 20) {
+async function spotifyFetch(url, options = {}) {
+  const response = await fetch(url, options);
+
+  if (response.status === 429) {
+    const retryAfter = Number(response.headers.get("retry-after")) || 60;
+    const data = await response.json().catch(() => ({}));
+    throw new SpotifyRateLimitError(
+      data.error?.message ?? "Too many requests",
+      retryAfter,
+    );
+  }
+
+  return response;
+}
+
+async function fetchContextTracks(token, contextUri, contextType, currentTrackId, limit = 20) {
+  const cached = contextTrackCache.get(contextUri);
+  if (cached && Date.now() - cached.fetchedAt < CONTEXT_CACHE_TTL_MS) {
+    return cached.tracks;
+  }
+
   const id = contextUri.split(":").pop();
   if (!id || !currentTrackId) {
     return [];
   }
 
   const tracks = [];
+  let url = null;
 
   if (contextType === "album") {
-    let url = `${API_BASE}/albums/${id}/tracks?limit=50`;
-    while (url && tracks.length < 500) {
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        break;
-      }
-
-      const data = await response.json();
-      for (const item of data.items ?? []) {
-        const mapped = mapQueueTrack(item);
-        if (mapped) {
-          tracks.push(mapped);
-        }
-      }
-      url = data.next ?? null;
-    }
+    url = `${API_BASE}/albums/${id}/tracks?limit=50`;
   } else if (contextType === "playlist") {
-    let url = `${API_BASE}/playlists/${id}/tracks?limit=100&fields=items(track(id,name,artists,album,duration_ms,images)),next`;
-    while (url && tracks.length < 500) {
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        break;
-      }
-
-      const data = await response.json();
-      for (const item of data.items ?? []) {
-        const mapped = mapQueueTrack(item.track);
-        if (mapped) {
-          tracks.push(mapped);
-        }
-      }
-      url = data.next ?? null;
-    }
+    url = `${API_BASE}/playlists/${id}/tracks?limit=100&fields=items(track(id,name,artists,album,duration_ms,images)),next`;
   } else {
     return [];
   }
 
+  while (url) {
+    const response = await spotifyFetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      break;
+    }
+
+    const data = await response.json();
+    for (const item of data.items ?? []) {
+      const mapped = mapQueueTrack(contextType === "album" ? item : item.track);
+      if (mapped) {
+        tracks.push(mapped);
+      }
+    }
+
+    const currentIndex = tracks.findIndex((track) => track.id === currentTrackId);
+    if (currentIndex !== -1 && tracks.length - currentIndex - 1 >= limit) {
+      break;
+    }
+
+    url = data.next ?? null;
+  }
+
+  contextTrackCache.set(contextUri, { tracks, fetchedAt: Date.now() });
+  return tracks;
+}
+
+async function fetchContextUpcoming(token, contextUri, contextType, currentTrackId, limit = 20) {
+  const tracks = await fetchContextTracks(token, contextUri, contextType, currentTrackId, limit);
   const currentIndex = tracks.findIndex((track) => track.id === currentTrackId);
   if (currentIndex === -1) {
     return [];
@@ -226,7 +265,7 @@ function buildUpcomingFromSources(apiQueue, playerData, contextUpcoming) {
 }
 
 async function fetchUpcoming(token, playerData = null) {
-  const response = await fetch(`${API_BASE}/me/player/queue`, {
+  const response = await spotifyFetch(`${API_BASE}/me/player/queue`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -303,7 +342,7 @@ function buildDeviceParams(deviceId) {
   return params;
 }
 
-export async function fetchCurrentlyPlaying() {
+export async function fetchCurrentlyPlaying({ includeUpcoming = true } = {}) {
   if (!isSpotifyConfigured()) {
     return {
       configured: false,
@@ -316,13 +355,14 @@ export async function fetchCurrentlyPlaying() {
   }
 
   const token = await getAccessToken();
-  const response = await fetch(`${API_BASE}/me/player`, {
+  const response = await spotifyFetch(`${API_BASE}/me/player`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
 
   if (response.status === 204) {
+    lastUpcoming = [];
     return {
       configured: true,
       playing: false,
@@ -344,8 +384,13 @@ export async function fetchCurrentlyPlaying() {
   }
 
   const data = await response.json();
-  const upcoming = await fetchUpcoming(token, data);
-  return mapPlaybackState(data, upcoming);
+
+  if (includeUpcoming) {
+    lastUpcoming = await fetchUpcoming(token, data);
+    markQueuePollRefreshed();
+  }
+
+  return mapPlaybackState(data, lastUpcoming);
 }
 
 function expandQueueTrack(queueTrack, currentTrack) {
@@ -437,8 +482,10 @@ export function buildOptimisticPatch(action, state, patch = {}) {
   return patch;
 }
 
-export async function syncPlaybackState() {
-  const playback = await fetchCurrentlyPlaying();
+export async function syncPlaybackState(options = {}) {
+  const playback = await fetchCurrentlyPlaying({
+    includeUpcoming: options.includeUpcoming ?? false,
+  });
   return playback;
 }
 

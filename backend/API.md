@@ -505,7 +505,9 @@ Shows the currently playing track from the authenticated Spotify account (phone,
 | `SPOTIFY_CLIENT_SECRET` | — | Spotify app client secret |
 | `SPOTIFY_REFRESH_TOKEN` | — | OAuth refresh token (from auth flow) |
 | `SPOTIFY_REDIRECT_URI` | `http://127.0.0.1:3000/api/spotify/callback` | OAuth redirect URI |
-| `SPOTIFY_POLL_MS` | `5000` | How often the backend polls Spotify (ms) |
+| `SPOTIFY_POLL_MS` | `15000` | How often the backend polls Spotify playback (ms) |
+| `SPOTIFY_QUEUE_POLL_MS` | `60000` | How often to refresh the queue / context tracks (ms) |
+| `SPOTIFY_CONTEXT_CACHE_MS` | `600000` | Cache TTL for playlist/album track lists (ms) |
 
 ### `GET /api/spotify/now-playing`
 
