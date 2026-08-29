@@ -3,9 +3,17 @@ import { getTagName, isTagNamed, registerDiscoveredTag } from "../../db/index.js
 import { updateReading } from "./store.js";
 
 const require = createRequire(import.meta.url);
-const ruuvi = require("node-ruuvitag");
 
 export function startRuuviScanner() {
+  let ruuvi;
+
+  try {
+    ruuvi = require("node-ruuvitag");
+  } catch (err) {
+    console.error("[ruuvi] Failed to load node-ruuvitag:", err.message);
+    return;
+  }
+
   ruuvi.on("found", (tag) => {
     const discovered = registerDiscoveredTag(tag.id, tag.address);
     const label = discovered.name ?? tag.id;
@@ -43,5 +51,9 @@ export function startRuuviScanner() {
     console.warn("BLE warning:", message);
   });
 
-  ruuvi.start();
+  try {
+    ruuvi.start();
+  } catch (err) {
+    console.error("[ruuvi] Failed to start BLE scanner:", err.message);
+  }
 }

@@ -21,6 +21,7 @@ jobs:
           cd /home/joonas-raspi/development/MonitorApp/backend
           rm -rf node_modules
           npm ci --production
+          npm rebuild better-sqlite3
 
       - name: Build frontend
         run: |
