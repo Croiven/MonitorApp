@@ -19,12 +19,15 @@ jobs:
       - name: Deploy backend
         run: |
           cd /home/joonas-raspi/development/MonitorApp/backend
+          rm -rf node_modules
           npm ci --production
 
       - name: Build frontend
         run: |
           cd /home/joonas-raspi/development/MonitorApp/frontend
+          rm -rf node_modules
           npm ci
+          npm install @rolldown/binding-linux-arm64-gnu@1.2.6 --no-save
           npm run build
 
       - name: Restart MonitorApp
