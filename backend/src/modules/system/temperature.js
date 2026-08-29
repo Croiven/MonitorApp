@@ -95,6 +95,18 @@ async function getPiTemperature() {
   }
 }
 
+function parsePiThrottleFlags(hexValue) {
+  const flags = Number.parseInt(hexValue, 16);
+  const current = flags & 0xf;
+
+  return {
+    underVoltage: Boolean(current & 0x1),
+    freqCapped: Boolean(current & 0x2),
+    throttled: Boolean(current & 0x4),
+    softTempLimit: Boolean(current & 0x8),
+  };
+}
+
 async function getPiThrottled() {
   try {
     const { stdout } = await execFileAsync("vcgencmd", ["get_throttled"], { timeout: 3_000 });
@@ -104,7 +116,7 @@ async function getPiThrottled() {
       return null;
     }
 
-    return Number.parseInt(match[1], 16) !== 0;
+    return parsePiThrottleFlags(match[1]);
   } catch {
     return null;
   }
@@ -112,7 +124,7 @@ async function getPiThrottled() {
 
 async function getLinuxTemperature(isRaspberryPi) {
   if (isRaspberryPi) {
-    const [piTemp, throttled] = await Promise.all([
+    const [piTemp, throttleFlags] = await Promise.all([
       getPiTemperature(),
       getPiThrottled(),
     ]);
@@ -120,7 +132,10 @@ async function getLinuxTemperature(isRaspberryPi) {
     if (piTemp) {
       return {
         ...piTemp,
-        throttled,
+        throttled: throttleFlags?.throttled ?? false,
+        softTempLimit: throttleFlags?.softTempLimit ?? false,
+        underVoltage: throttleFlags?.underVoltage ?? false,
+        freqCapped: throttleFlags?.freqCapped ?? false,
       };
     }
   }

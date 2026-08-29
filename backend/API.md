@@ -377,14 +377,17 @@ Host status for the machine running the backend (Windows dev PC or Raspberry Pi)
     "celsius": 42.3,
     "label": "CPU",
     "source": "vcgencmd",
-    "throttled": false
+    "throttled": false,
+    "softTempLimit": false,
+    "underVoltage": false,
+    "freqCapped": false
   },
   "error": null,
   "updatedAt": "2026-08-28T00:00:00.000Z"
 }
 ```
 
-On Windows, CPU load averages are not available (`load1` is `null`). Temperature uses WMI when supported; many desktop PCs report `temperature: null`. On Raspberry Pi, temperature comes from `vcgencmd` with thermal zone fallback, and `throttled` indicates CPU throttling.
+On Windows, CPU load averages are not available (`load1` is `null`). Temperature uses WMI when supported; many desktop PCs report `temperature: null`. On Raspberry Pi, temperature comes from `vcgencmd` with thermal zone fallback. Throttle flags reflect the **current** state only (not latched since-boot history from `vcgencmd get_throttled`).
 
 ---
 

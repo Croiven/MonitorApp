@@ -14,6 +14,15 @@ export function startRuuviScanner() {
     return;
   }
 
+  try {
+    const noble = require("@stoprocent/noble");
+    noble.on("stateChange", (state) => {
+      console.log("[ruuvi] BLE adapter state:", state);
+    });
+  } catch {
+    // Optional — node-ruuvitag still works without this hook.
+  }
+
   ruuvi.on("found", (tag) => {
     const discovered = registerDiscoveredTag(tag.id, tag.address);
     const label = discovered.name ?? tag.id;

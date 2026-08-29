@@ -141,6 +141,12 @@
                 <span class="sub">{system.temperature.label ?? "CPU"}</span>
                 {#if system.temperature.throttled}
                   <span class="warn">Throttled</span>
+                {:else if system.temperature.softTempLimit}
+                  <span class="warn soft">Soft limit</span>
+                {:else if system.temperature.underVoltage}
+                  <span class="warn power">Undervolt</span>
+                {:else if system.temperature.freqCapped}
+                  <span class="warn power">Freq capped</span>
                 {/if}
               </div>
             </div>
@@ -294,6 +300,14 @@
     color: #f85149;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+  }
+
+  .warn.soft {
+    color: #d29922;
+  }
+
+  .warn.power {
+    color: #d29922;
   }
 
   .value {
